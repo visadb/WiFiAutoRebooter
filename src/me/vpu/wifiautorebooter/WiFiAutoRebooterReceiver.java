@@ -13,7 +13,7 @@ public class WiFiAutoRebooterReceiver extends BroadcastReceiver {
 	public void onReceive(Context arg0, Intent arg1) {
 		Log.d(WiFiAutoRebooterStarter.LOG_TAG, "WiFiAutoRebooterReceiver.onReceive()");
 		try {
-			InetAddress router = InetAddress.getByName("127.0.0.1");
+			InetAddress router = InetAddress.getByName("192.168.0.1");
 			boolean isReachable = router.isReachable(300);
 			Log.d(WiFiAutoRebooterStarter.LOG_TAG, "Router reachable: "+isReachable);
 		} catch (UnknownHostException e) {
