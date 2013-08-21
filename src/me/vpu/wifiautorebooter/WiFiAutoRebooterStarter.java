@@ -3,7 +3,9 @@ package me.vpu.wifiautorebooter;
 import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.RemoteViews;
@@ -11,7 +13,6 @@ import android.widget.RemoteViews;
 public class WiFiAutoRebooterStarter extends Activity {
 	private static final String LOG_TAG = WiFiAutoRebooterStarter.class.getName();
 	private static final int NOTIFICATION_ID = 0;
-	private static final String ROUTER_IP = "192.168.0.1";
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -19,7 +20,8 @@ public class WiFiAutoRebooterStarter extends Activity {
 		Log.d(LOG_TAG, "WiFiAutoRebooterStarter.onCreate()");
 		
 		addNotificationIcon();
-		WiFiAutoRebooterReceiver.scheduleNextWiFiCheck(getApplicationContext(), ROUTER_IP, 0);
+		
+		WiFiAutoRebooterReceiver.scheduleNextWiFiCheck(getApplicationContext(), 200);
 		finish();
 	}
 	
@@ -28,11 +30,15 @@ public class WiFiAutoRebooterStarter extends Activity {
 		n.icon = R.drawable.ic_launcher;
 		n.tickerText = getResources().getString(R.string.notification_text);
 		n.contentView = new RemoteViews("me.vpu.wifiautorebooter", R.layout.notificationlayout);
+		n.contentIntent = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent(), PendingIntent.FLAG_UPDATE_CURRENT);
 		n.flags = Notification.FLAG_NO_CLEAR;
 		
 		NotificationManager mNotificationManager =
 				(NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		// mId allows you to update the notification later on.
-		mNotificationManager.notify(NOTIFICATION_ID, n);
+		try {
+			mNotificationManager.notify(NOTIFICATION_ID, n);
+		} catch (Throwable t) {
+			Util.logStackTrace(LOG_TAG, t);
+		}
 	}
 }

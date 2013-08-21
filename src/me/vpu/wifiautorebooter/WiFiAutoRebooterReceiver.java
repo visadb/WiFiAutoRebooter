@@ -1,8 +1,7 @@
 package me.vpu.wifiautorebooter;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.net.InetAddress;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Calendar;
 
 import android.app.AlarmManager;
@@ -16,33 +15,29 @@ import android.util.Log;
 
 public class WiFiAutoRebooterReceiver extends BroadcastReceiver {
 	private static final String LOG_TAG = WiFiAutoRebooterReceiver.class.getName();
-	private static final int checkIntervalInSeconds = 30;
-	private static String ROUTER_IP_KEY = "routerIP";
-	private static String DEFAULT_ROUTER_IP = "192.168.0.1";
+	private static final int checkIntervalInSeconds = 5 * 60;
 	
 	@Override
 	public void onReceive(Context mCtx, Intent intent) {
 		Log.d(LOG_TAG, "WiFiAutoRebooterReceiver.onReceive()");
 
-		String routerIP = intent.getExtras().getString(ROUTER_IP_KEY);
-		routerIP = routerIP==null ? DEFAULT_ROUTER_IP : routerIP;
-		new CheckRouterConnectivityTask(mCtx, routerIP).execute();
+		new CheckInternetConnectivityTask(mCtx).execute();
 
-		scheduleNextWiFiCheck(mCtx, routerIP, checkIntervalInSeconds * 1000);
+		scheduleNextWiFiCheck(mCtx, checkIntervalInSeconds * 1000);
 	}
 	
-	private void onRouterConnectivityCheckComplete(Context mCtx, String routerIP, boolean routerReachable) {
-		Log.d(LOG_TAG, "Router "+routerIP+" reachable: "+routerReachable);
-		if (!routerReachable) {
+	private void onInternetConnectivityCheckComplete(Context mCtx, boolean internetReachable) {
+		Log.d(LOG_TAG, "Internet connected: "+internetReachable);
+		if (!internetReachable) {
 			WifiManager ws = (WifiManager)mCtx.getSystemService(Context.WIFI_SERVICE);
-			boolean reassociationSucceeded = ws.reassociate();
-			Log.d(LOG_TAG, "Reassociation succeeded: "+reassociationSucceeded);
+			boolean disableSucceeded = ws.setWifiEnabled(false);
+			boolean enableSucceeded = ws.setWifiEnabled(true);
+			Log.d(LOG_TAG, "Toggling wifi: "+disableSucceeded+"/"+enableSucceeded);
 		}
 	}
 	
-	public static void scheduleNextWiFiCheck(Context mCtx, String routerIP, long delayInMillis) {
+	public static void scheduleNextWiFiCheck(Context mCtx, long delayInMillis) {
 		Intent alarmIntent = new Intent(mCtx, WiFiAutoRebooterReceiver.class);
-		alarmIntent.putExtra(ROUTER_IP_KEY, routerIP);
 		PendingIntent pendingIntent = PendingIntent.getBroadcast(mCtx, 0, alarmIntent,
 				PendingIntent.FLAG_UPDATE_CURRENT);
 		AlarmManager alarmManager = (AlarmManager)mCtx.getSystemService(Context.ALARM_SERVICE);
@@ -50,35 +45,36 @@ public class WiFiAutoRebooterReceiver extends BroadcastReceiver {
 	}
 	
 	
-	private class CheckRouterConnectivityTask extends AsyncTask<Void, Void, Boolean> {
-		Context mCtx;
-		String routerIP;
+	private class CheckInternetConnectivityTask extends AsyncTask<Void, Void, Boolean> {
+		private Context mCtx;
 		
-		public CheckRouterConnectivityTask(Context mCtx, String routerIP) {
+		public CheckInternetConnectivityTask(Context mCtx) {
 			super();
 			this.mCtx = mCtx;
-			this.routerIP = routerIP;
 		}
 		
 		@Override
 		protected Boolean doInBackground(Void... args) {
+			HttpURLConnection urlConnect = null;
 			try {
-				InetAddress router = InetAddress.getByName(routerIP);
-				boolean isReachable = router.isReachable(1000);
-				return isReachable;
-			} catch (Throwable t) {
-				StringWriter sw = new StringWriter();
-				PrintWriter pw = new PrintWriter(sw);
-				t.printStackTrace(pw);
-				Log.e(LOG_TAG, sw.toString());
+				URL url = new URL("http://www.google.com/");
+				urlConnect = (HttpURLConnection)url.openConnection();
+				urlConnect.setRequestMethod("HEAD");
+				urlConnect.setRequestProperty("Accept-Encoding", "");
+				urlConnect.getContent();
+			} catch (Exception e) {
+				return false;
+			} finally {
+				if (urlConnect != null)
+					urlConnect.disconnect();
 			}
-			return false;
+			return true;
 		}
-		
+
 		@Override
 		protected void onPostExecute(Boolean result) {
 			super.onPostExecute(result);
-			onRouterConnectivityCheckComplete(mCtx, routerIP, result);
+			onInternetConnectivityCheckComplete(mCtx, result);
 		}
 	
 	}
