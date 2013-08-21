@@ -1,5 +1,6 @@
 <resources>
 
     <string name="app_name">WiFiAutoRebooter</string>
+    <string name="notification_text">WiFiAutoRebooter running...</string>
 
 </resources>
